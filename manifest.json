@@ -1,6 +1,9 @@
 {
   "name": "Lantern Breaker",
   "short_name": "Lanterns",
+  "id": "/lantern-breaker/",
+  "description": "Bounce the ball and light up every lantern.",
+  "categories": ["games"],
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
