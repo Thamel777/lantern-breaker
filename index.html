@@ -79,7 +79,10 @@
 
 <script>
 // ---------- Setup & responsive scaling ----------
-const W = 480, H = 720, HUD = 56;               // fixed logical game size
+const W = 480, HUD = 56;                        // logical width stays fixed; height follows the screen
+let H = 720;                                    // recomputed in fit()
+const H_MIN = 720, H_MAX = 1100;                // clamp, so very tall or short screens stay reasonable
+let layoutReady = false;                        // true once paddle/ball exist and fit() may move them
 const cvs = document.getElementById('game');
 const ctx = cvs.getContext('2d');
 const stage = document.getElementById('stage');
@@ -88,6 +91,12 @@ function fit() {
   const cs = getComputedStyle(stage);
   const aw = stage.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const ah = stage.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
+
+  // Match the logical height to the stage's aspect ratio so tall phones fill the
+  // screen instead of showing empty bands. Wide screens compute well below H_MIN
+  // and clamp to 720, so desktop keeps the centred 480x720 board it has today.
+  H = aw > 0 ? Math.max(H_MIN, Math.min(H_MAX, Math.round(W * ah / aw))) : H_MIN;
+
   const scale = Math.min(aw / W, ah / H);
   const dpr = Math.min(window.devicePixelRatio || 1, 2);   // cap for performance
   cvs.style.width  = W * scale + 'px';
@@ -95,6 +104,13 @@ function fit() {
   cvs.width  = Math.round(W * scale * dpr);
   cvs.height = Math.round(H * scale * dpr);
   ctx.setTransform(cvs.width / W, 0, 0, cvs.height / H, 0, 0);
+
+  // A resize mid-game (rotation, fullscreen) must not reset the level or score:
+  // just re-anchor the paddle to the new floor and carry a stuck ball with it.
+  if (layoutReady) {
+    paddle.y = H - 64;
+    if (ball.stuck) { ball.x = paddle.x; ball.y = paddle.y - paddle.h / 2 - ball.r - 1; }
+  }
 }
 addEventListener('resize', fit);
 addEventListener('orientationchange', () => setTimeout(fit, 150));
@@ -120,8 +136,9 @@ const COLORS = ['#FF5D73', '#FF9F1C', '#FFD23F', '#3BCEAC', '#5AA9E6', '#C77DFF'
 const COLS = 8, ROWS = 6, PAD = 24, GAP = 6, BH = 20, TOP = HUD + 40;
 const BW = (W - PAD * 2 - GAP * (COLS - 1)) / COLS;
 
-const paddle = { w: 96, h: 14, x: W / 2, y: H - 64, speed: 640 };
+const paddle = { w: 96, h: 14, x: W / 2, y: H - 64, speed: 640 };   // H is already final: fit() ran above
 const ball = { r: 8, x: 0, y: 0, vx: 0, vy: 0, stuck: true };
+layoutReady = true;                             // from here on, fit() can reposition the paddle and ball
 let bricks = [], sparks = [];
 let score = 0, lives = 3, level = 1, best = 0;
 let state = 'menu';                 // menu | play | paused | over
